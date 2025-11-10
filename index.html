@@ -452,19 +452,6 @@
             
             <form id="travelForm">
                 <div class="form-group">
-                    <label for="apiKey">Gemini APIキー 🔑（オプション）</label>
-                    <div class="api-key-group">
-                        <input type="password" id="apiKey" name="apiKey" placeholder="APIキーを入力（未入力の場合は無料APIモード）">
-                        <button type="button" class="api-key-toggle" id="apiKeyToggle">表示</button>
-                    </div>
-                    <div class="api-key-info">
-                        APIキーを入力するとGemini APIを使用します（高品質な提案）。<br>
-                        未入力の場合は無料の旅行情報APIを使用します（APIキー不要）。<br>
-                        <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>で取得できます。
-                    </div>
-                </div>
-
-                <div class="form-group">
                     <label>希望要素（複数選択可）</label>
                     <div class="checkbox-group">
                         <label class="checkbox-item">
@@ -500,16 +487,23 @@
                         <input type="text" id="departure" name="departure" placeholder="例: 東京" required>
                     </div>
                     <div class="form-group">
-                        <label for="budget">予算（円）</label>
-                        <input type="number" id="budget" name="budget" placeholder="例: 50000" min="0" required>
+                        <label for="region">行きたい方面（任意）</label>
+                        <input type="text" id="region" name="region" placeholder="例: 関西、九州、北海道など">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
+                        <label for="budget">予算（円）</label>
+                        <input type="number" id="budget" name="budget" placeholder="例: 50000" min="0" required>
+                    </div>
+                    <div class="form-group">
                         <label for="duration">日程（日数）</label>
                         <input type="number" id="duration" name="duration" placeholder="例: 3" min="1" required>
                     </div>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group">
                         <label for="season">時期</label>
                         <select id="season" name="season" required>
@@ -550,30 +544,6 @@
     </div>
 
     <script>
-        // 使用可能なGemini APIモデル（順番に試す）
-        // 正しいモデル名を使用（models/プレフィックスは不要）
-        const GEMINI_MODELS = [
-            'gemini-1.5-flash',
-            'gemini-1.5-pro',
-            'gemini-pro',
-            'gemini-1.5-flash-002',
-            'gemini-1.5-pro-002'
-        ];
-        
-        // ベースURL
-        const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-        
-        // Gemini APIはCORSを許可していないため、プロキシが必要な場合がある
-        // ただし、最初は直接APIを試し、CORSエラーが出た場合のみプロキシを使用
-        const CORS_PROXIES = [
-            'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?',
-            'https://api.codetabs.com/v1/proxy?quest='
-        ];
-        
-        // CORSプロキシを使用するかどうか（CORSエラーが発生した場合にtrueになる）
-        let useCorsProxy = false;
-        let corsProxyIndex = 0;
 
         const form = document.getElementById('travelForm');
         const loading = document.getElementById('loading');
@@ -614,9 +584,9 @@
             e.preventDefault();
             
             const formData = new FormData(form);
-            const apiKey = formData.get('apiKey');
             const interests = Array.from(formData.getAll('interests'));
             const departure = formData.get('departure');
+            const region = formData.get('region'); // 行きたい方面
             const budget = formData.get('budget');
             const duration = formData.get('duration');
             const season = formData.get('season');
@@ -626,15 +596,6 @@
                 return;
             }
 
-            // APIキーをローカルストレージに保存（入力されている場合のみ）
-            if (apiKey && apiKey.trim() !== '') {
-                localStorage.setItem('geminiApiKey', apiKey.trim());
-            } else {
-                localStorage.removeItem('geminiApiKey');
-            }
-
-            const useGeminiAPI = apiKey && apiKey.trim() !== '';
-
             // ローディング表示
             loading.classList.add('active');
             results.classList.remove('active');
@@ -642,29 +603,15 @@
             submitBtn.disabled = true;
 
             try {
-                // APIキーがある場合はGemini APIを使用、ない場合は無料APIを使用
-                if (useGeminiAPI) {
-                    // Gemini APIを使用
-                    await generatePlansWithGemini(apiKey.trim(), interests, departure, budget, duration, season);
-                } else {
-                    // 無料APIを使用
-                    await generatePlansWithFreeAPI(interests, departure, budget, duration, season);
-                }
+                // 無料APIを使用してプランを生成
+                await generatePlansWithFreeAPI(interests, departure, region, budget, duration, season);
             } catch (error) {
                 console.error('Error:', error);
                 let errorMessage = error.message;
                 
-                // クォータ超過エラーの場合、警告を表示
-                if (error.message.includes('429') || error.message.includes('クォータ超過')) {
-                    const quotaWarning = document.getElementById('quotaWarning');
-                    if (quotaWarning) {
-                        quotaWarning.style.display = 'block';
-                    }
-                }
-                
                 // Failed to fetchエラーの場合、より詳細な情報を提供
                 if (error.message.includes('Failed to fetch') || error.message.includes('ネットワークエラー')) {
-                    errorMessage = `ネットワークエラーが発生しました。\n\n考えられる原因:\n1. インターネット接続を確認してください\n2. ブラウザのコンソール（F12）でCORSエラーを確認してください\n3. APIキーが正しいか確認してください\n4. ファイアウォールやプロキシの設定を確認してください\n\n詳細: ${error.message}`;
+                    errorMessage = `ネットワークエラーが発生しました。\n\n考えられる原因:\n1. インターネット接続を確認してください\n2. ブラウザのコンソール（F12）でエラーを確認してください\n3. ファイアウォールやプロキシの設定を確認してください\n\n詳細: ${error.message}`;
                 }
                 
                 showError(errorMessage);
@@ -674,243 +621,9 @@
             }
         });
 
-        // Gemini APIを使用してプランを生成
-        async function generatePlansWithGemini(apiKey, interests, departure, budget, duration, season) {
-            // まず利用可能なモデルをリストして確認
-            console.log('利用可能なモデルを確認中...');
-            let availableModels = GEMINI_MODELS;
-                
-                // ListModels APIを呼び出して利用可能なモデルを取得（オプション）
-                try {
-                    const listModelsUrl = `${GEMINI_API_BASE}/models?key=${apiKey.trim()}`;
-                    const modelsResponse = await fetch(listModelsUrl).catch(() => null);
-                    if (modelsResponse && modelsResponse.ok) {
-                        const modelsData = await modelsResponse.json();
-                        if (modelsData.models) {
-                            // generateContentをサポートするモデルをフィルタ
-                            availableModels = modelsData.models
-                                .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
-                                .map(m => m.name.replace('models/', ''))
-                                .slice(0, 5); // 最初の5つを使用
-                            console.log('利用可能なモデル:', availableModels);
-                        }
-                    }
-                } catch (e) {
-                    console.warn('モデルリストの取得に失敗しました。デフォルトのモデルを使用します。', e);
-                }
-                
-                const prompt = `以下の条件に基づいて、旅行プランを3案提案してください。各プランは具体的で魅力的な内容にしてください。
-
-【条件】
-- 希望要素: ${interests.join('、')}
-- 出発地: ${departure}
-- 予算: ${parseInt(budget).toLocaleString()}円
-- 日程: ${duration}日間
-- 時期: ${season}
-
-【出力形式】
-各プランは以下の形式で出力してください：
-
-【プラン1: [プラン名]】
-[詳細な説明、おすすめスポット、アクティビティ、予算の使い方などを含む具体的な内容]
-
-【プラン2: [プラン名]】
-[詳細な説明、おすすめスポット、アクティビティ、予算の使い方などを含む具体的な内容]
-
-【プラン3: [プラン名]】
-[詳細な説明、おすすめスポット、アクティビティ、予算の使い方などを含む具体的な内容]
-
-各プランは200文字程度で、魅力的で具体的な内容にしてください。`;
-
-                // 複数のモデルを試す（利用可能なモデルを使用）
-                let lastError = null;
-                let success = false;
-                let text = null;
-
-                for (const model of availableModels) {
-                    try {
-                        // 正しいエンドポイント形式: /v1beta/models/{model}:generateContent
-                        let apiUrl = `${GEMINI_API_BASE}/models/${model}:generateContent?key=${apiKey.trim()}`;
-                        
-                        // CORSエラーが発生した場合、プロキシを使用
-                        if (useCorsProxy && corsProxyIndex < CORS_PROXIES.length) {
-                            const proxy = CORS_PROXIES[corsProxyIndex];
-                            apiUrl = proxy + encodeURIComponent(apiUrl);
-                        }
-                        
-                        console.log(`試行中: ${model} - ${apiUrl.substring(0, 100)}...`);
-                        
-                        const requestOptions = {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                contents: [{
-                                    parts: [{
-                                        text: prompt
-                                    }]
-                                }]
-                            })
-                        };
-                        
-                        const response = await fetch(apiUrl, requestOptions).catch(fetchError => {
-                            // CORSエラーの場合、プロキシを試す
-                            if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('CORS')) {
-                                if (!useCorsProxy && corsProxyIndex < CORS_PROXIES.length) {
-                                    console.warn('CORSエラーが検出されました。プロキシを使用して再試行します...');
-                                    useCorsProxy = true;
-                                    return null; // ループを続ける
-                                } else if (corsProxyIndex < CORS_PROXIES.length - 1) {
-                                    console.warn(`プロキシ ${corsProxyIndex + 1} が失敗しました。次のプロキシを試します...`);
-                                    corsProxyIndex++;
-                                    useCorsProxy = true;
-                                    return null;
-                                }
-                            }
-                            
-                            // fetchエラーの詳細を取得
-                            console.error('Fetch error:', fetchError);
-                            throw new Error(`ネットワークエラー: ${fetchError.message}`);
-                        });
-                        
-                        // プロキシ再試行の場合はcontinue
-                        if (response === null) {
-                            continue;
-                        }
-
-                        if (response.ok) {
-                            let responseText = await response.text();
-                            
-                            // プロキシ経由の場合、レスポンスがラップされている可能性がある
-                            if (useCorsProxy && corsProxyIndex < CORS_PROXIES.length) {
-                                const proxy = CORS_PROXIES[corsProxyIndex];
-                                try {
-                                    if (proxy.includes('allorigins')) {
-                                        // alloriginsの/rawエンドポイントは生のレスポンスを返す
-                                        // そのまま使用
-                                    } else if (proxy.includes('codetabs')) {
-                                        // codetabsは生のレスポンスを返す
-                                        // そのまま使用
-                                    } else {
-                                        // その他のプロキシはJSONでラップされている可能性がある
-                                        const wrapped = JSON.parse(responseText);
-                                        if (wrapped.contents) {
-                                            responseText = wrapped.contents;
-                                        } else if (typeof wrapped === 'string') {
-                                            responseText = wrapped;
-                                        } else if (wrapped.data) {
-                                            responseText = wrapped.data;
-                                        }
-                                    }
-                                } catch (e) {
-                                    // JSONでない場合はそのまま使用
-                                    console.warn('プロキシレスポンスのパースに失敗しましたが、そのまま使用します:', e);
-                                }
-                            }
-                            
-                            // JSONとしてパース
-                            let data;
-                            try {
-                                data = JSON.parse(responseText);
-                            } catch (e) {
-                                console.error('JSON parse error:', e);
-                                console.error('Response text:', responseText.substring(0, 500));
-                                throw new Error('APIからの応答が不正なJSON形式です。');
-                            }
-                            
-                            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                                text = data.candidates[0].content.parts[0].text;
-                                success = true;
-                                break; // 成功したらループを抜ける
-                            } else {
-                                console.warn('予期しないレスポンス形式:', data);
-                            }
-                        } else {
-                            // エラーレスポンスを取得
-                            let errorData = {};
-                            try {
-                                errorData = await response.json();
-                            } catch (e) {
-                                // JSONパースに失敗した場合は空オブジェクト
-                            }
-                            
-                            const errorMessage = errorData.error?.message || `HTTPエラー: ${response.status}`;
-                            
-                            if (response.status === 404) {
-                                // 404の場合は次のモデルを試す
-                                console.warn(`モデル "${model}" が見つかりません（404）。次のモデルを試します...`);
-                                console.warn('エラー詳細:', errorMessage);
-                                
-                                // プロキシが404を返している場合、プロキシを切り替える
-                                if (useCorsProxy && corsProxyIndex < CORS_PROXIES.length - 1) {
-                                    console.warn(`プロキシ ${corsProxyIndex + 1} が404を返しました。次のプロキシを試します...`);
-                                    corsProxyIndex++;
-                                    continue;
-                                }
-                                
-                                lastError = new Error(`モデル "${model}" が見つかりません（404）`);
-                                continue;
-                            } else if (response.status === 429) {
-                                // クォータ超過エラー
-                                console.error('クォータ超過エラー:', errorMessage);
-                                
-                                // リトライ時間を抽出
-                                const retryMatch = errorMessage.match(/Please retry in ([\d.]+)s/);
-                                const retrySeconds = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : 60;
-                                
-                                throw new Error(`クォータ超過エラー（429）\n\n【問題】\nGemini APIの無料枠のクォータを使い切りました。\n\n【解決策】\n1. ${retrySeconds}秒後に再試行してください\n2. または、新しいAPIキーを取得してください\n3. または、Google Cloud Consoleで課金を有効化してください\n\n詳細: https://ai.google.dev/gemini-api/docs/rate-limits\n使用状況: https://ai.dev/usage?tab=rate-limit`);
-                            } else if (response.status === 400) {
-                                console.error('リクエストエラー:', errorMessage);
-                                throw new Error(`リクエストエラー（400）: ${errorMessage}\n\n考えられる原因:\n- リクエストの形式が正しくない\n- プロンプトが長すぎる\n- モデル名が間違っている`);
-                            } else if (response.status === 401 || response.status === 403) {
-                                console.error('認証エラー:', errorMessage);
-                                throw new Error(`認証エラー（${response.status}）: ${errorMessage}\n\nAPIキーが無効です。正しいAPIキーを入力してください。\nAPIキーは https://makersuite.google.com/app/apikey で取得できます。`);
-                            } else {
-                                console.error('APIエラー:', errorMessage);
-                                throw new Error(`APIエラー（${response.status}）: ${errorMessage}`);
-                            }
-                        }
-                    } catch (error) {
-                        // ネットワークエラーやfetchエラーは即座にスロー
-                        if (error.message.includes('ネットワークエラー') || error.message.includes('Failed to fetch')) {
-                            throw error;
-                        }
-                        // 404の場合は次のモデルを試す
-                        if (error.message.includes('404')) {
-                            lastError = error;
-                            continue;
-                        }
-                        throw error;
-                    }
-                }
-
-                if (!success) {
-                    const errorDetails = lastError ? `\n最後のエラー: ${lastError.message}` : '';
-                    throw new Error(`すべてのモデルで404エラーが発生しました。\n\n試したモデル: ${GEMINI_MODELS.join(', ')}\n\n考えられる原因:\n1. APIキーが正しくない、または無効\n2. APIキーに必要な権限がない\n3. モデル名が間違っている\n4. APIエンドポイントが変更されている\n\n解決策:\n1. https://makersuite.google.com/app/apikey で新しいAPIキーを取得\n2. APIキーが有効であることを確認\n3. ブラウザのコンソール（F12）で詳細なエラーメッセージを確認${errorDetails}`);
-                }
-
-                // プランを解析して表示
-                const plans = parsePlans(text);
-                displayPlans(plans);
-
-                // ローカルストレージに保存
-                savePlan({
-                    interests,
-                    departure,
-                    budget,
-                    duration,
-                    season,
-                    plans,
-                    timestamp: new Date().toISOString()
-                });
-
-                // 保存されたプランを更新
-                displaySavedPlans();
-        }
 
         // 無料APIを使用してプランを生成
-        async function generatePlansWithFreeAPI(interests, departure, budget, duration, season) {
+        async function generatePlansWithFreeAPI(interests, departure, region, budget, duration, season) {
             console.log('無料APIモードでプランを生成中...');
             
             const totalBudget = parseInt(budget);
@@ -927,29 +640,38 @@
             
             // 出発地から主要都市への距離を考慮（簡易版）
             const departureRegions = {
-                '東京': '関東',
-                '横浜': '関東',
-                '千葉': '関東',
-                '埼玉': '関東',
-                '大阪': '関西',
-                '京都': '関西',
-                '神戸': '関西',
-                '奈良': '関西',
-                '名古屋': '中部',
-                '福岡': '九州',
-                '札幌': '北海道',
-                '仙台': '東北',
-                '広島': '中国',
-                '新潟': '北陸',
-                '金沢': '北陸'
+                '東京': '関東', '横浜': '関東', '千葉': '関東', '埼玉': '関東', '神奈川': '関東',
+                '大阪': '関西', '京都': '関西', '神戸': '関西', '奈良': '関西', '兵庫': '関西',
+                '名古屋': '中部', '愛知': '中部', '静岡': '中部', '岐阜': '中部',
+                '福岡': '九州', '博多': '九州', '熊本': '九州', '鹿児島': '九州',
+                '札幌': '北海道', '函館': '北海道', '旭川': '北海道',
+                '仙台': '東北', '盛岡': '東北', '青森': '東北', '秋田': '東北',
+                '広島': '中国', '岡山': '中国', '鳥取': '中国',
+                '新潟': '北陸', '金沢': '北陸', '富山': '北陸', '福井': '北陸'
             };
             
             // 出発地の地域を判定
             let departureRegion = '関東'; // デフォルト
-            for (const [city, region] of Object.entries(departureRegions)) {
+            for (const [city, reg] of Object.entries(departureRegions)) {
                 if (departure.includes(city) || city.includes(departure)) {
-                    departureRegion = region;
+                    departureRegion = reg;
                     break;
+                }
+            }
+            
+            // 行きたい方面が指定されている場合は、それを優先
+            if (region && region.trim() !== '') {
+                const regionKeywords = {
+                    '関東': '関東', '関西': '関西', '中部': '中部', '九州': '九州',
+                    '北海道': '北海道', '東北': '東北', '中国': '中国', '北陸': '北陸',
+                    '四国': '四国', '沖縄': '沖縄', '近畿': '関西', '東海': '中部'
+                };
+                
+                for (const [keyword, reg] of Object.entries(regionKeywords)) {
+                    if (region.includes(keyword)) {
+                        departureRegion = reg;
+                        break;
+                    }
                 }
             }
             
@@ -980,20 +702,22 @@
             const currentSeasonInfo = seasonInfo[season] || seasonInfo['春'];
             
             // 出発地を考慮した目的地データベース（地域別に優先度を調整）
-            const getDestinationsByRegion = (baseDestinations, region) => {
-                // 地域別の優先目的地
+            const getDestinationsByRegion = (baseDestinations, targetRegion) => {
+                // 地域別の優先目的地（行きたい方面が指定されている場合はその地域を優先）
                 const regionPriorities = {
-                    '関東': ['箱根', '熱海', '伊豆', '草津', '鬼怒川', '修善寺'],
-                    '関西': ['有馬', '城崎', '道後', '別府', '由布院'],
-                    '中部': ['下呂', '草津', '修善寺', '箱根'],
-                    '九州': ['別府', '由布院', '指宿', '黒川'],
-                    '北海道': ['登別', '定山渓', '層雲峡', '十勝'],
-                    '東北': ['鳴子', '蔵王', '花巻', '秋保温泉'],
-                    '中国': ['道後', '三朝', '皆生', '湯本'],
-                    '北陸': ['和倉', '山中', '片山津', '芦原']
+                    '関東': ['箱根', '熱海', '伊豆', '草津', '鬼怒川', '修善寺', '那須', '日光', '鎌倉', '横浜'],
+                    '関西': ['有馬', '城崎', '道後', '別府', '由布院', '白浜', '勝浦', '京都', '奈良', '大阪'],
+                    '中部': ['下呂', '草津', '修善寺', '箱根', '高山', '白川郷', '金沢', '松本', '上高地'],
+                    '九州': ['別府', '由布院', '指宿', '黒川', '霧島', '雲仙', '嬉野', '福岡', '熊本', '鹿児島'],
+                    '北海道': ['登別', '定山渓', '層雲峡', '十勝', '洞爺湖', '支笏湖', '札幌', '函館', '小樽', '知床'],
+                    '東北': ['鳴子', '蔵王', '花巻', '秋保', '銀山', '乳頭', '酸ヶ湯', '仙台', '盛岡', '青森'],
+                    '中国': ['道後', '三朝', '皆生', '湯本', '玉造', '松江', '広島', '高松', '松山'],
+                    '北陸': ['和倉', '山中', '片山津', '芦原', '加賀', '金沢', '富山', '新潟'],
+                    '四国': ['道後', '高松', '松山', '高知', '徳島', '丸亀', '今治'],
+                    '沖縄': ['那覇', '沖縄', '石垣', '宮古', '久米島', '与那国', '座間味', '渡嘉敷']
                 };
                 
-                const priorities = regionPriorities[region] || [];
+                const priorities = regionPriorities[targetRegion] || [];
                 const sorted = [...baseDestinations].sort((a, b) => {
                     const aIndex = priorities.indexOf(a);
                     const bIndex = priorities.indexOf(b);
@@ -1578,7 +1302,8 @@
                     minute: '2-digit'
                 });
 
-                const summary = `${planData.departure}発 | ${planData.duration}日間 | ${planData.season} | ${planData.interests.join('、')} | ${parseInt(planData.budget).toLocaleString()}円`;
+                const regionText = planData.region ? ` | ${planData.region}方面` : '';
+                const summary = `${planData.departure}発${regionText} | ${planData.duration}日間 | ${planData.season} | ${planData.interests.join('、')} | ${parseInt(planData.budget).toLocaleString()}円`;
 
                 planItem.innerHTML = `
                     <div class="saved-plan-date">${dateStr}</div>
@@ -1606,4 +1331,5 @@
     </script>
 </body>
 </html>
+
 
