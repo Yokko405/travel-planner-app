@@ -531,25 +531,29 @@
 
     <script>
         // 使用可能なGemini APIモデル（順番に試す）
+        // 最新のモデル名を試す
         const GEMINI_MODELS = [
+            'gemini-1.5-flash-latest',
+            'gemini-1.5-pro-latest',
             'gemini-1.5-flash',
             'gemini-1.5-pro',
-            'gemini-pro'
+            'gemini-pro',
+            'models/gemini-1.5-flash',
+            'models/gemini-1.5-pro'
         ];
         
         // ベースURL
         const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
         
-        // CORSプロキシ（CORSエラーを回避するため）
-        // 注意: プロキシサーバーにAPIキーが送信されます。セキュリティ上の懸念があります。
-        // 推奨: ローカルサーバーで実行してください（python3 -m http.server 8000）
+        // GitHub Pagesからは直接APIを呼び出せるため、CORSプロキシは不要
+        // file://プロトコルの場合のみプロキシを使用
         const CORS_PROXIES = [
             'https://api.allorigins.win/raw?url=',
             'https://corsproxy.io/?'
         ];
         
-        // CORSプロキシを使用するかどうか
-        let useCorsProxy = false;
+        // CORSプロキシを使用するかどうか（file://プロトコルの場合のみ）
+        let useCorsProxy = window.location.protocol === 'file:';
         let corsProxyIndex = 0;
 
         const form = document.getElementById('travelForm');
@@ -677,8 +681,9 @@
                         };
                         
                         const response = await fetch(apiUrl, requestOptions).catch(fetchError => {
-                            // CORSエラーの場合、プロキシを試す
-                            if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('CORS')) {
+                            // GitHub PagesからはCORSエラーは発生しないはず
+                            // file://プロトコルの場合のみプロキシを試す
+                            if ((fetchError.message.includes('Failed to fetch') || fetchError.message.includes('CORS')) && window.location.protocol === 'file:') {
                                 if (!useCorsProxy && corsProxyIndex < CORS_PROXIES.length) {
                                     console.warn('CORSエラーが検出されました。プロキシを使用して再試行します...');
                                     useCorsProxy = true;
@@ -693,7 +698,7 @@
                             
                             // fetchエラーの詳細を取得
                             console.error('Fetch error:', fetchError);
-                            throw new Error(`ネットワークエラー: ${fetchError.message}\n\n【重要】CORSエラーが発生しています。\n\n【推奨解決策】\nローカルサーバーで実行してください：\n1. ターミナルでプロジェクトフォルダに移動\n2. python3 -m http.server 8000 を実行\n3. ブラウザで http://localhost:8000 にアクセス\n\nまたは、Node.jsがインストールされている場合：\n1. npx serve を実行\n2. 表示されたURLにアクセス`);
+                            throw new Error(`ネットワークエラー: ${fetchError.message}`);
                         });
                         
                         // プロキシ再試行の場合はcontinue
@@ -722,14 +727,18 @@
                             
                             if (response.status === 404) {
                                 // 404の場合は次のモデルを試す
-                                lastError = new Error(`モデル "${model}" が見つかりません（404）。次のモデルを試します...`);
-                                console.warn(lastError.message);
+                                console.warn(`モデル "${model}" が見つかりません（404）。次のモデルを試します...`);
+                                console.warn('エラー詳細:', errorMessage);
+                                lastError = new Error(`モデル "${model}" が見つかりません（404）`);
                                 continue;
                             } else if (response.status === 400) {
-                                throw new Error(`リクエストエラー（400）: ${errorMessage}`);
+                                console.error('リクエストエラー:', errorMessage);
+                                throw new Error(`リクエストエラー（400）: ${errorMessage}\n\n考えられる原因:\n- リクエストの形式が正しくない\n- プロンプトが長すぎる\n- モデル名が間違っている`);
                             } else if (response.status === 401 || response.status === 403) {
-                                throw new Error(`認証エラー（${response.status}）: APIキーが無効です。正しいAPIキーを入力してください。`);
+                                console.error('認証エラー:', errorMessage);
+                                throw new Error(`認証エラー（${response.status}）: ${errorMessage}\n\nAPIキーが無効です。正しいAPIキーを入力してください。\nAPIキーは https://makersuite.google.com/app/apikey で取得できます。`);
                             } else {
+                                console.error('APIエラー:', errorMessage);
                                 throw new Error(`APIエラー（${response.status}）: ${errorMessage}`);
                             }
                         }
@@ -748,7 +757,8 @@
                 }
 
                 if (!success) {
-                    throw new Error(`すべてのモデルで404エラーが発生しました。APIキーが正しいか、または利用可能なモデルがありません。\n試したモデル: ${GEMINI_MODELS.join(', ')}\n\nAPIキーは https://makersuite.google.com/app/apikey で取得できます。`);
+                    const errorDetails = lastError ? `\n最後のエラー: ${lastError.message}` : '';
+                    throw new Error(`すべてのモデルで404エラーが発生しました。\n\n試したモデル: ${GEMINI_MODELS.join(', ')}\n\n考えられる原因:\n1. APIキーが正しくない、または無効\n2. APIキーに必要な権限がない\n3. モデル名が間違っている\n4. APIエンドポイントが変更されている\n\n解決策:\n1. https://makersuite.google.com/app/apikey で新しいAPIキーを取得\n2. APIキーが有効であることを確認\n3. ブラウザのコンソール（F12）で詳細なエラーメッセージを確認${errorDetails}`);
                 }
 
                 // プランを解析して表示
