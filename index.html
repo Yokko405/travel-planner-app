@@ -925,12 +925,92 @@
                 budgetLevel = 'luxury'; // 1日3万円以上
             }
             
+            // 出発地から主要都市への距離を考慮（簡易版）
+            const departureRegions = {
+                '東京': '関東',
+                '横浜': '関東',
+                '千葉': '関東',
+                '埼玉': '関東',
+                '大阪': '関西',
+                '京都': '関西',
+                '神戸': '関西',
+                '奈良': '関西',
+                '名古屋': '中部',
+                '福岡': '九州',
+                '札幌': '北海道',
+                '仙台': '東北',
+                '広島': '中国',
+                '新潟': '北陸',
+                '金沢': '北陸'
+            };
+            
+            // 出発地の地域を判定
+            let departureRegion = '関東'; // デフォルト
+            for (const [city, region] of Object.entries(departureRegions)) {
+                if (departure.includes(city) || city.includes(departure)) {
+                    departureRegion = region;
+                    break;
+                }
+            }
+            
+            // 季節に応じたおすすめ情報
+            const seasonInfo = {
+                '春': {
+                    highlights: ['桜の名所', '新緑', '春の花', 'お花見'],
+                    activities: ['桜まつり', '新緑ハイキング', '春のグルメ', '温泉でリフレッシュ'],
+                    tips: '春は気候が良く、観光に最適な季節です。'
+                },
+                '夏': {
+                    highlights: ['海水浴', '花火大会', '避暑地', '夏祭り'],
+                    activities: ['ビーチリゾート', '山の避暑地', '夏祭り', '冷たいグルメ'],
+                    tips: '夏は暑さ対策を忘れずに。避暑地や海辺がおすすめです。'
+                },
+                '秋': {
+                    highlights: ['紅葉', '秋の味覚', '文化祭', 'スポーツ観戦'],
+                    activities: ['紅葉狩り', '秋のグルメ', '文化施設巡り', 'ハイキング'],
+                    tips: '秋は紅葉の季節。観光地が最も美しい時期です。'
+                },
+                '冬': {
+                    highlights: ['スキー', '雪景色', 'イルミネーション', '温泉'],
+                    activities: ['ウィンタースポーツ', '雪まつり', '温泉', '鍋料理'],
+                    tips: '冬は温泉やスキーが楽しめます。防寒対策を忘れずに。'
+                }
+            };
+            
+            const currentSeasonInfo = seasonInfo[season] || seasonInfo['春'];
+            
+            // 出発地を考慮した目的地データベース（地域別に優先度を調整）
+            const getDestinationsByRegion = (baseDestinations, region) => {
+                // 地域別の優先目的地
+                const regionPriorities = {
+                    '関東': ['箱根', '熱海', '伊豆', '草津', '鬼怒川', '修善寺'],
+                    '関西': ['有馬', '城崎', '道後', '別府', '由布院'],
+                    '中部': ['下呂', '草津', '修善寺', '箱根'],
+                    '九州': ['別府', '由布院', '指宿', '黒川'],
+                    '北海道': ['登別', '定山渓', '層雲峡', '十勝'],
+                    '東北': ['鳴子', '蔵王', '花巻', '秋保温泉'],
+                    '中国': ['道後', '三朝', '皆生', '湯本'],
+                    '北陸': ['和倉', '山中', '片山津', '芦原']
+                };
+                
+                const priorities = regionPriorities[region] || [];
+                const sorted = [...baseDestinations].sort((a, b) => {
+                    const aIndex = priorities.indexOf(a);
+                    const bIndex = priorities.indexOf(b);
+                    if (aIndex === -1 && bIndex === -1) return 0;
+                    if (aIndex === -1) return 1;
+                    if (bIndex === -1) return -1;
+                    return aIndex - bIndex;
+                });
+                return sorted;
+            };
+            
             // 予算レベルに応じた目的地データベース
             const destinations = {
                 '温泉': {
-                    budget: ['熱海', '伊豆', '修善寺', '鬼怒川', '箱根'], // 近場・リーズナブル
-                    standard: ['箱根', '草津', '別府', '由布院', '登別', '道後', '有馬', '下呂'],
-                    luxury: ['由布院', '登別', '道後', '有馬', '下呂', '城崎', '指宿'] // 高級温泉地
+                    budget: ['熱海', '伊豆', '修善寺', '鬼怒川', '箱根', '草津', '別府'], // 近場・リーズナブル
+                    standard: ['箱根', '草津', '別府', '由布院', '登別', '道後', '有馬', '下呂', '城崎', '指宿'],
+                    luxury: ['由布院', '登別', '道後', '有馬', '下呂', '城崎', '指宿', '黒川', '加賀'] // 高級温泉地
                 },
                 '秘境': {
                     budget: ['白川郷', '奥入瀬', '祖谷', '四万十川', '尾瀬'], // 比較的アクセスしやすい
@@ -959,12 +1039,15 @@
                 }
             };
 
-            // 希望要素に基づいて目的地を選択（予算レベルに応じて）
+            // 希望要素に基づいて目的地を選択（予算レベルと出発地を考慮）
             const selectedDestinations = [];
             interests.forEach(interest => {
                 if (destinations[interest] && destinations[interest][budgetLevel]) {
-                    // 予算レベルに応じた目的地から3-4つ選択
-                    const destList = destinations[interest][budgetLevel];
+                    // 予算レベルに応じた目的地を取得
+                    let destList = destinations[interest][budgetLevel];
+                    // 出発地を考慮して優先順位を調整
+                    destList = getDestinationsByRegion(destList, departureRegion);
+                    // 3-4つ選択
                     const count = Math.min(4, destList.length);
                     selectedDestinations.push(...destList.slice(0, count));
                 }
@@ -1047,20 +1130,59 @@
                 planContent += `${template.style}を重視したプランです。${dest}の魅力を存分に楽しめます。\n\n`;
                 
                 planContent += `【おすすめスポット】\n`;
-                if (interests.includes('温泉')) {
-                    planContent += `・温泉施設でリラックス${budgetLevel === 'luxury' ? '（高級温泉旅館）' : budgetLevel === 'budget' ? '（日帰り温泉）' : ''}\n`;
+                
+                // 目的地に応じた具体的なスポット情報
+                const spotInfo = {
+                    '箱根': '・箱根湯本温泉、大涌谷、芦ノ湖、箱根美術館',
+                    '草津': '・湯畑、西の河原公園、草津温泉、白根山',
+                    '別府': '・地獄めぐり、別府温泉、由布院、九重連山',
+                    '由布院': '・金鱗湖、由布院温泉、湯の坪街道、美術館',
+                    '登別': '・地獄谷、登別温泉、熊牧場、伊達時代村',
+                    '道後': '・道後温泉本館、松山城、坂の上の雲ミュージアム',
+                    '有馬': '・有馬温泉、六甲山、有馬玩具博物館',
+                    '下呂': '・下呂温泉、下呂温泉合掌村、飛騨高山',
+                    '京都': '・清水寺、金閣寺、伏見稲荷大社、嵐山',
+                    '奈良': '・東大寺、奈良公園、春日大社、法隆寺',
+                    '鎌倉': '・鶴岡八幡宮、大仏、長谷寺、江ノ島',
+                    '金沢': '・兼六園、金沢城、東茶屋街、21世紀美術館',
+                    '白川郷': '・合掌造り集落、展望台、民俗村',
+                    '屋久島': '・縄文杉、白谷雲水峡、大川の滝',
+                    '知床': '・知床五湖、知床岬、フレペの滝',
+                    '直島': '・地中美術館、ベネッセハウス、草間彌生の作品',
+                    '大阪': '・道頓堀、大阪城、USJ、通天閣',
+                    '福岡': '・博多ラーメン、太宰府天満宮、能古島'
+                };
+                
+                // 目的地に応じた具体的なスポットを表示
+                if (spotInfo[dest]) {
+                    planContent += spotInfo[dest] + '\n';
+                } else {
+                    // デフォルトのスポット情報
+                    if (interests.includes('温泉')) {
+                        planContent += `・温泉施設でリラックス${budgetLevel === 'luxury' ? '（高級温泉旅館）' : budgetLevel === 'budget' ? '（日帰り温泉）' : ''}\n`;
+                    }
+                    if (interests.includes('グルメ')) {
+                        planContent += `・地元の名物料理を堪能${budgetLevel === 'luxury' ? '（高級レストラン）' : budgetLevel === 'budget' ? '（B級グルメ）' : ''}\n`;
+                    }
+                    if (interests.includes('自然')) {
+                        planContent += `・自然散策を楽しむ${budgetLevel === 'luxury' ? '（ガイドツアー）' : ''}\n`;
+                    }
+                    if (interests.includes('歴史建造物')) {
+                        planContent += `・歴史的な建造物を巡る${budgetLevel === 'luxury' ? '（特別公開）' : ''}\n`;
+                    }
+                    if (interests.includes('アート')) {
+                        planContent += `・アートスポットを訪問${budgetLevel === 'luxury' ? '（特別展）' : ''}\n`;
+                    }
                 }
-                if (interests.includes('グルメ')) {
-                    planContent += `・地元の名物料理を堪能${budgetLevel === 'luxury' ? '（高級レストラン）' : budgetLevel === 'budget' ? '（B級グルメ）' : ''}\n`;
+                
+                // 季節に応じたおすすめ情報を追加
+                planContent += `\n【${season}のおすすめ】\n`;
+                planContent += `${currentSeasonInfo.tips}\n`;
+                if (currentSeasonInfo.highlights.length > 0) {
+                    planContent += `・${currentSeasonInfo.highlights.join('、')}\n`;
                 }
-                if (interests.includes('自然')) {
-                    planContent += `・自然散策を楽しむ${budgetLevel === 'luxury' ? '（ガイドツアー）' : ''}\n`;
-                }
-                if (interests.includes('歴史建造物')) {
-                    planContent += `・歴史的な建造物を巡る${budgetLevel === 'luxury' ? '（特別公開）' : ''}\n`;
-                }
-                if (interests.includes('アート')) {
-                    planContent += `・アートスポットを訪問${budgetLevel === 'luxury' ? '（特別展）' : ''}\n`;
+                if (currentSeasonInfo.activities.length > 0) {
+                    planContent += `・${currentSeasonInfo.activities.slice(0, 2).join('、')}\n`;
                 }
                 
                 planContent += `\n【予算の使い方】\n`;
