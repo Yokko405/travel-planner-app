@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>旅行プラン提案アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            padding: 30px 0;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: slideIn 0.6s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .checkbox-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-item input[type="checkbox"]:checked + span {
+            font-weight: 700;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f9f9f9;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="password"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .api-key-group {
+            position: relative;
+        }
+
+        .api-key-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 5px 10px;
+        }
+
+        .api-key-toggle:hover {
+            opacity: 0.7;
+        }
+
+        .api-key-info {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .api-key-info a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .api-key-info a:hover {
+            text-decoration: underline;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .plan-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            animation: fadeIn 0.6s ease;
+        }
+
+        .plan-card:nth-child(2) {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .plan-card:nth-child(3) {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .plan-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .plan-content {
+            line-height: 1.8;
+            font-size: 1rem;
+            white-space: pre-wrap;
+        }
+
+        .saved-plans {
+            margin-top: 30px;
+        }
+
+        .saved-plans-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .saved-plans-header h2 {
+            color: white;
+            font-size: 1.8rem;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .saved-plan-item {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .saved-plan-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .saved-plan-date {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .saved-plan-summary {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.1rem;
+        }
+
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .checkbox-group {
+                flex-direction: column;
+            }
+
+            .checkbox-item {
+                width: 100%;
+            }
+
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌍 旅行プラン提案アプリ</h1>
+            <p>あなたの希望に合わせた素敵な旅行プランをご提案します</p>
+        </div>
+
+        <div class="card">
+            <div id="corsWarning" style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 10px; padding: 15px; margin-bottom: 20px; display: none;">
+                <strong>⚠️ CORSエラーが検出されました</strong>
+                <p style="margin-top: 10px; margin-bottom: 0;">
+                    ファイルを直接開いているため、APIリクエストがブロックされています。<br>
+                    <strong>解決策:</strong> ターミナルで <code>python3 -m http.server 8000</code> を実行し、<br>
+                    <code>http://localhost:8000</code> にアクセスしてください。
+                </p>
+            </div>
+            
+            <form id="travelForm">
+                <div class="form-group">
+                    <label for="apiKey">Gemini APIキー 🔑</label>
+                    <div class="api-key-group">
+                        <input type="password" id="apiKey" name="apiKey" placeholder="APIキーを入力してください" required>
+                        <button type="button" class="api-key-toggle" id="apiKeyToggle">表示</button>
+                    </div>
+                    <div class="api-key-info">
+                        APIキーはローカルストレージに保存されます。<a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>で取得できます。
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>希望要素（複数選択可）</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="interests" value="温泉">
+                            <span>♨️ 温泉</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="interests" value="秘境">
+                            <span>🏔️ 秘境</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="interests" value="歴史建造物">
+                            <span>🏛️ 歴史建造物</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="interests" value="グルメ">
+                            <span>🍜 グルメ</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="interests" value="自然">
+                            <span>🌲 自然</span>
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="interests" value="アート">
+                            <span>🎨 アート</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="departure">出発地</label>
+                        <input type="text" id="departure" name="departure" placeholder="例: 東京" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="budget">予算（円）</label>
+                        <input type="number" id="budget" name="budget" placeholder="例: 50000" min="0" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="duration">日程（日数）</label>
+                        <input type="number" id="duration" name="duration" placeholder="例: 3" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="season">時期</label>
+                        <select id="season" name="season" required>
+                            <option value="">選択してください</option>
+                            <option value="春">春（3月〜5月）</option>
+                            <option value="夏">夏（6月〜8月）</option>
+                            <option value="秋">秋（9月〜11月）</option>
+                            <option value="冬">冬（12月〜2月）</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">
+                    ✈️ 旅行プランを提案してもらう
+                </button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>旅行プランを考えています...</p>
+            </div>
+
+            <div class="error" id="error"></div>
+        </div>
+
+        <div class="results" id="results">
+            <h2 style="color: white; margin-bottom: 20px; font-size: 1.8rem;">✨ 提案された旅行プラン</h2>
+            <div id="plansContainer"></div>
+        </div>
+
+        <div class="saved-plans">
+            <div class="saved-plans-header">
+                <h2>📚 保存されたプラン</h2>
+                <button class="btn-secondary" id="clearBtn">すべて削除</button>
+            </div>
+            <div id="savedPlansContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // 使用可能なGemini APIモデル（順番に試す）
+        const GEMINI_MODELS = [
+            'gemini-1.5-flash',
+            'gemini-1.5-pro',
+            'gemini-pro'
+        ];
+        
+        // ベースURL
+        const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+        
+        // CORSプロキシ（CORSエラーを回避するため）
+        // 注意: プロキシサーバーにAPIキーが送信されます。セキュリティ上の懸念があります。
+        // 推奨: ローカルサーバーで実行してください（python3 -m http.server 8000）
+        const CORS_PROXIES = [
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?'
+        ];
+        
+        // CORSプロキシを使用するかどうか
+        let useCorsProxy = false;
+        let corsProxyIndex = 0;
+
+        const form = document.getElementById('travelForm');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const plansContainer = document.getElementById('plansContainer');
+        const savedPlansContainer = document.getElementById('savedPlansContainer');
+        const errorDiv = document.getElementById('error');
+        const submitBtn = document.getElementById('submitBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const apiKeyInput = document.getElementById('apiKey');
+        const apiKeyToggle = document.getElementById('apiKeyToggle');
+
+        // 保存されたAPIキーを読み込む
+        const savedApiKey = localStorage.getItem('geminiApiKey');
+        if (savedApiKey) {
+            apiKeyInput.value = savedApiKey;
+        }
+
+        // file://プロトコルで開いている場合、警告を表示
+        const corsWarning = document.getElementById('corsWarning');
+        if (window.location.protocol === 'file:') {
+            corsWarning.style.display = 'block';
+        }
+
+        // APIキーの表示/非表示切り替え
+        apiKeyToggle.addEventListener('click', () => {
+            if (apiKeyInput.type === 'password') {
+                apiKeyInput.type = 'text';
+                apiKeyToggle.textContent = '非表示';
+            } else {
+                apiKeyInput.type = 'password';
+                apiKeyToggle.textContent = '表示';
+            }
+        });
+
+        // フォーム送信処理
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            const apiKey = formData.get('apiKey');
+            const interests = Array.from(formData.getAll('interests'));
+            const departure = formData.get('departure');
+            const budget = formData.get('budget');
+            const duration = formData.get('duration');
+            const season = formData.get('season');
+
+            if (!apiKey || apiKey.trim() === '') {
+                showError('Gemini APIキーを入力してください。');
+                return;
+            }
+
+            if (interests.length === 0) {
+                showError('希望要素を少なくとも1つ選択してください。');
+                return;
+            }
+
+            // APIキーをローカルストレージに保存
+            localStorage.setItem('geminiApiKey', apiKey.trim());
+
+            // ローディング表示
+            loading.classList.add('active');
+            results.classList.remove('active');
+            errorDiv.classList.remove('active');
+            submitBtn.disabled = true;
+
+            try {
+                const prompt = `以下の条件に基づいて、旅行プランを3案提案してください。各プランは具体的で魅力的な内容にしてください。
+
+【条件】
+- 希望要素: ${interests.join('、')}
+- 出発地: ${departure}
+- 予算: ${parseInt(budget).toLocaleString()}円
+- 日程: ${duration}日間
+- 時期: ${season}
+
+【出力形式】
+各プランは以下の形式で出力してください：
+
+【プラン1: [プラン名]】
+[詳細な説明、おすすめスポット、アクティビティ、予算の使い方などを含む具体的な内容]
+
+【プラン2: [プラン名]】
+[詳細な説明、おすすめスポット、アクティビティ、予算の使い方などを含む具体的な内容]
+
+【プラン3: [プラン名]】
+[詳細な説明、おすすめスポット、アクティビティ、予算の使い方などを含む具体的な内容]
+
+各プランは200文字程度で、魅力的で具体的な内容にしてください。`;
+
+                // 複数のモデルを試す
+                let lastError = null;
+                let success = false;
+                let text = null;
+
+                for (const model of GEMINI_MODELS) {
+                    try {
+                        let apiUrl = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey.trim()}`;
+                        
+                        // CORSエラーが発生した場合、プロキシを使用
+                        if (useCorsProxy && corsProxyIndex < CORS_PROXIES.length) {
+                            const proxy = CORS_PROXIES[corsProxyIndex];
+                            if (proxy.includes('allorigins')) {
+                                apiUrl = proxy + encodeURIComponent(apiUrl);
+                            } else {
+                                apiUrl = proxy + encodeURIComponent(apiUrl);
+                            }
+                        }
+                        
+                        console.log(`試行中: ${model} - ${apiUrl.substring(0, 100)}...`);
+                        
+                        const requestOptions = {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                contents: [{
+                                    parts: [{
+                                        text: prompt
+                                    }]
+                                }]
+                            })
+                        };
+                        
+                        const response = await fetch(apiUrl, requestOptions).catch(fetchError => {
+                            // CORSエラーの場合、プロキシを試す
+                            if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('CORS')) {
+                                if (!useCorsProxy && corsProxyIndex < CORS_PROXIES.length) {
+                                    console.warn('CORSエラーが検出されました。プロキシを使用して再試行します...');
+                                    useCorsProxy = true;
+                                    return null; // ループを続ける
+                                } else if (corsProxyIndex < CORS_PROXIES.length - 1) {
+                                    console.warn(`プロキシ ${corsProxyIndex + 1} が失敗しました。次のプロキシを試します...`);
+                                    corsProxyIndex++;
+                                    useCorsProxy = true;
+                                    return null;
+                                }
+                            }
+                            
+                            // fetchエラーの詳細を取得
+                            console.error('Fetch error:', fetchError);
+                            throw new Error(`ネットワークエラー: ${fetchError.message}\n\n【重要】CORSエラーが発生しています。\n\n【推奨解決策】\nローカルサーバーで実行してください：\n1. ターミナルでプロジェクトフォルダに移動\n2. python3 -m http.server 8000 を実行\n3. ブラウザで http://localhost:8000 にアクセス\n\nまたは、Node.jsがインストールされている場合：\n1. npx serve を実行\n2. 表示されたURLにアクセス`);
+                        });
+                        
+                        // プロキシ再試行の場合はcontinue
+                        if (response === null) {
+                            continue;
+                        }
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            
+                            if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                                text = data.candidates[0].content.parts[0].text;
+                                success = true;
+                                break; // 成功したらループを抜ける
+                            }
+                        } else {
+                            // エラーレスポンスを取得
+                            let errorData = {};
+                            try {
+                                errorData = await response.json();
+                            } catch (e) {
+                                // JSONパースに失敗した場合は空オブジェクト
+                            }
+                            
+                            const errorMessage = errorData.error?.message || `HTTPエラー: ${response.status}`;
+                            
+                            if (response.status === 404) {
+                                // 404の場合は次のモデルを試す
+                                lastError = new Error(`モデル "${model}" が見つかりません（404）。次のモデルを試します...`);
+                                console.warn(lastError.message);
+                                continue;
+                            } else if (response.status === 400) {
+                                throw new Error(`リクエストエラー（400）: ${errorMessage}`);
+                            } else if (response.status === 401 || response.status === 403) {
+                                throw new Error(`認証エラー（${response.status}）: APIキーが無効です。正しいAPIキーを入力してください。`);
+                            } else {
+                                throw new Error(`APIエラー（${response.status}）: ${errorMessage}`);
+                            }
+                        }
+                    } catch (error) {
+                        // ネットワークエラーやfetchエラーは即座にスロー
+                        if (error.message.includes('ネットワークエラー') || error.message.includes('Failed to fetch')) {
+                            throw error;
+                        }
+                        // 404の場合は次のモデルを試す
+                        if (error.message.includes('404')) {
+                            lastError = error;
+                            continue;
+                        }
+                        throw error;
+                    }
+                }
+
+                if (!success) {
+                    throw new Error(`すべてのモデルで404エラーが発生しました。APIキーが正しいか、または利用可能なモデルがありません。\n試したモデル: ${GEMINI_MODELS.join(', ')}\n\nAPIキーは https://makersuite.google.com/app/apikey で取得できます。`);
+                }
+
+                // プランを解析して表示
+                const plans = parsePlans(text);
+                displayPlans(plans);
+
+                // ローカルストレージに保存
+                savePlan({
+                    interests,
+                    departure,
+                    budget,
+                    duration,
+                    season,
+                    plans,
+                    timestamp: new Date().toISOString()
+                });
+
+                // 保存されたプランを更新
+                displaySavedPlans();
+
+            } catch (error) {
+                console.error('Error:', error);
+                let errorMessage = error.message;
+                
+                // Failed to fetchエラーの場合、より詳細な情報を提供
+                if (error.message.includes('Failed to fetch') || error.message.includes('ネットワークエラー')) {
+                    errorMessage = `ネットワークエラーが発生しました。\n\n考えられる原因:\n1. インターネット接続を確認してください\n2. ブラウザのコンソール（F12）でCORSエラーを確認してください\n3. APIキーが正しいか確認してください\n4. ファイアウォールやプロキシの設定を確認してください\n\n詳細: ${error.message}`;
+                }
+                
+                showError(errorMessage);
+            } finally {
+                loading.classList.remove('active');
+                submitBtn.disabled = false;
+            }
+        });
+
+        // プランテキストを解析
+        function parsePlans(text) {
+            const plans = [];
+            const planRegex = /【プラン(\d+):\s*([^】]+)】\s*([^【]+)/g;
+            let match;
+
+            while ((match = planRegex.exec(text)) !== null) {
+                plans.push({
+                    number: match[1],
+                    title: match[2].trim(),
+                    content: match[3].trim()
+                });
+            }
+
+            // 正規表現でマッチしない場合は、テキストを3つに分割
+            if (plans.length === 0) {
+                const parts = text.split(/\n\n+/);
+                for (let i = 0; i < Math.min(3, parts.length); i++) {
+                    const part = parts[i].trim();
+                    if (part) {
+                        const lines = part.split('\n');
+                        const title = lines[0].replace(/^【?プラン\d*[:：]?\s*/, '').replace(/】?$/, '').trim() || `プラン${i + 1}`;
+                        const content = lines.slice(1).join('\n').trim() || part;
+                        plans.push({
+                            number: i + 1,
+                            title: title,
+                            content: content
+                        });
+                    }
+                }
+            }
+
+            return plans.length > 0 ? plans : [{
+                number: 1,
+                title: '旅行プラン',
+                content: text
+            }];
+        }
+
+        // プランを表示
+        function displayPlans(plans) {
+            plansContainer.innerHTML = '';
+            plans.forEach((plan, index) => {
+                const planCard = document.createElement('div');
+                planCard.className = 'plan-card';
+                planCard.innerHTML = `
+                    <div class="plan-title">
+                        <span>${index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
+                        <span>プラン${plan.number}: ${plan.title}</span>
+                    </div>
+                    <div class="plan-content">${plan.content}</div>
+                `;
+                plansContainer.appendChild(planCard);
+            });
+            results.classList.add('active');
+            
+            // 結果までスクロール
+            results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // エラー表示
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.classList.add('active');
+        }
+
+        // プランをローカルストレージに保存
+        function savePlan(planData) {
+            let savedPlans = JSON.parse(localStorage.getItem('travelPlans') || '[]');
+            savedPlans.unshift(planData); // 最新を先頭に
+            if (savedPlans.length > 50) { // 最大50件まで保存
+                savedPlans = savedPlans.slice(0, 50);
+            }
+            localStorage.setItem('travelPlans', JSON.stringify(savedPlans));
+        }
+
+        // 保存されたプランを表示
+        function displaySavedPlans() {
+            const savedPlans = JSON.parse(localStorage.getItem('travelPlans') || '[]');
+            savedPlansContainer.innerHTML = '';
+
+            if (savedPlans.length === 0) {
+                savedPlansContainer.innerHTML = '<div class="empty-state">保存されたプランはありません</div>';
+                return;
+            }
+
+            savedPlans.forEach((planData, index) => {
+                const planItem = document.createElement('div');
+                planItem.className = 'saved-plan-item';
+                
+                const date = new Date(planData.timestamp);
+                const dateStr = date.toLocaleDateString('ja-JP', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const summary = `${planData.departure}発 | ${planData.duration}日間 | ${planData.season} | ${planData.interests.join('、')} | ${parseInt(planData.budget).toLocaleString()}円`;
+
+                planItem.innerHTML = `
+                    <div class="saved-plan-date">${dateStr}</div>
+                    <div class="saved-plan-summary">${summary}</div>
+                `;
+
+                planItem.addEventListener('click', () => {
+                    displayPlans(planData.plans);
+                });
+
+                savedPlansContainer.appendChild(planItem);
+            });
+        }
+
+        // すべて削除ボタン
+        clearBtn.addEventListener('click', () => {
+            if (confirm('保存されたすべてのプランを削除しますか？')) {
+                localStorage.removeItem('travelPlans');
+                displaySavedPlans();
+            }
+        });
+
+        // ページ読み込み時に保存されたプランを表示
+        displaySavedPlans();
+    </script>
+</body>
+</html>
+
