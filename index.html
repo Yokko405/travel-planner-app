@@ -536,31 +536,12 @@
         const errorDiv = document.getElementById('error');
         const submitBtn = document.getElementById('submitBtn');
         const clearBtn = document.getElementById('clearBtn');
-        const apiKeyInput = document.getElementById('apiKey');
-        const apiKeyToggle = document.getElementById('apiKeyToggle');
-
-        // 保存されたAPIキーを読み込む
-        const savedApiKey = localStorage.getItem('geminiApiKey');
-        if (savedApiKey) {
-            apiKeyInput.value = savedApiKey;
-        }
 
         // file://プロトコルで開いている場合、警告を表示
         const corsWarning = document.getElementById('corsWarning');
-        if (window.location.protocol === 'file:') {
+        if (corsWarning && window.location.protocol === 'file:') {
             corsWarning.style.display = 'block';
         }
-
-        // APIキーの表示/非表示切り替え
-        apiKeyToggle.addEventListener('click', () => {
-            if (apiKeyInput.type === 'password') {
-                apiKeyInput.type = 'text';
-                apiKeyToggle.textContent = '非表示';
-            } else {
-                apiKeyInput.type = 'password';
-                apiKeyToggle.textContent = '表示';
-            }
-        });
 
         // フォーム送信処理
         form.addEventListener('submit', async (e) => {
