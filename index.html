@@ -608,10 +608,16 @@
         // 無料APIを使用してプランを生成
         async function generatePlansWithFreeAPI(interests, departure, region, budget, duration, season) {
             console.log('無料APIモードでプランを生成中...');
+            console.log('入力値:', { interests, departure, region, budget, duration, season });
             
+            try {
             const totalBudget = parseInt(budget);
             const days = parseInt(duration);
             const dailyBudget = Math.floor(totalBudget / days);
+            
+            if (isNaN(totalBudget) || isNaN(days) || days <= 0) {
+                throw new Error('予算または日程が正しく入力されていません。');
+            }
             
             // 予算レベルを判定（1日あたりの予算で判定）
             let budgetLevel = 'standard'; // standard, budget, luxury
@@ -1169,12 +1175,18 @@
             }
 
             // プランを表示
+            console.log('生成されたプラン:', plans);
+            if (!plans || plans.length === 0) {
+                throw new Error('プランの生成に失敗しました。');
+            }
+            
             displayPlans(plans);
 
             // ローカルストレージに保存
             savePlan({
                 interests,
                 departure,
+                region: region || '',
                 budget,
                 duration,
                 season,
@@ -1184,6 +1196,10 @@
 
             // 保存されたプランを更新
             displaySavedPlans();
+            } catch (error) {
+                console.error('プラン生成エラー:', error);
+                throw error;
+            }
         }
 
         // プランテキストを解析
