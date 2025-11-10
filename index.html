@@ -1153,9 +1153,16 @@
                     if (region && region.trim() !== '') {
                         const priorities = regionPriorities[departureRegion] || [];
                         
+                        console.log(`希望要素「${interest}」の処理開始`);
+                        console.log(`目的地リスト:`, destList);
+                        console.log(`優先リスト:`, priorities);
+                        
                         // 行きたい方面の目的地を先に抽出
                         const regionDests = destList.filter(dest => priorities.includes(dest));
                         const otherDests = destList.filter(dest => !priorities.includes(dest));
+                        
+                        console.log(`行きたい方面の目的地:`, regionDests);
+                        console.log(`その他の目的地:`, otherDests);
                         
                         // 優先順位に従ってソート
                         regionDests.sort((a, b) => {
@@ -1168,10 +1175,15 @@
                         const regionCount = Math.min(6, regionDests.length);
                         selectedDestinations.push(...regionDests.slice(0, regionCount));
                         
-                        // 行きたい方面の目的地が少ない場合は、その他の目的地も追加
-                        if (regionDests.length < 3) {
-                            const otherCount = Math.min(3 - regionDests.length, otherDests.length);
+                        console.log(`選択された行きたい方面の目的地:`, regionDests.slice(0, regionCount));
+                        
+                        // 行きたい方面の目的地が3つ未満の場合でも、まずは行きたい方面の目的地を優先
+                        // その他の目的地は後で追加（行きたい方面の目的地が3つ以上になるまで待つ）
+                        if (regionDests.length === 0) {
+                            // 行きたい方面の目的地が1つもない場合は、その他の目的地も追加
+                            const otherCount = Math.min(3, otherDests.length);
                             selectedDestinations.push(...otherDests.slice(0, otherCount));
+                            console.log(`行きたい方面の目的地がないため、その他の目的地を追加:`, otherDests.slice(0, otherCount));
                         }
                     } else {
                         // 出発地を考慮して優先順位を調整
