@@ -875,6 +875,8 @@
                 }
             });
 
+            console.log('選択された目的地（重複前）:', selectedDestinations);
+
             // 重複を削除
             let uniqueDestinations = [...new Set(selectedDestinations)];
             
@@ -891,6 +893,8 @@
                 });
             }
             
+            console.log('ユニークな目的地:', uniqueDestinations);
+            
             // ランダムにシャッフルして多様性を確保
             uniqueDestinations = uniqueDestinations.sort(() => Math.random() - 0.5);
             
@@ -905,6 +909,8 @@
                     finalDestinations.push(fallback[i % fallback.length]);
                 }
             }
+            
+            console.log('最終的な目的地:', finalDestinations);
 
             // 予算レベルに応じたプランテンプレート
             const planTemplates = {
