@@ -854,11 +854,21 @@
                 if (destinations[interest] && destinations[interest][budgetLevel]) {
                     // 予算レベルに応じた目的地を取得
                     let destList = destinations[interest][budgetLevel];
-                    // 出発地を考慮して優先順位を調整
-                    destList = getDestinationsByRegion(destList, departureRegion);
-                    // 3-4つ選択
-                    const count = Math.min(4, destList.length);
-                    selectedDestinations.push(...destList.slice(0, count));
+                    
+                    // 行きたい方面が指定されている場合は、その地域の目的地を優先
+                    if (region && region.trim() !== '') {
+                        // 行きたい方面の目的地を先に取得
+                        destList = getDestinationsByRegion(destList, departureRegion);
+                        // 行きたい方面の目的地を優先的に選択（最大6つ）
+                        const count = Math.min(6, destList.length);
+                        selectedDestinations.push(...destList.slice(0, count));
+                    } else {
+                        // 出発地を考慮して優先順位を調整
+                        destList = getDestinationsByRegion(destList, departureRegion);
+                        // 3-4つ選択
+                        const count = Math.min(4, destList.length);
+                        selectedDestinations.push(...destList.slice(0, count));
+                    }
                 }
             });
 
@@ -885,36 +895,60 @@
             
             // 行きたい方面が指定されている場合、その地域の目的地を優先
             if (region && region.trim() !== '') {
-                const regionDestinations = getDestinationsByRegion(uniqueDestinations, departureRegion);
-                // 行きたい方面の目的地を先頭に移動
+                // 行きたい方面の優先目的地リストを取得
+                const regionPriorities = {
+                    '関東': ['箱根', '熱海', '伊豆', '草津', '鬼怒川', '修善寺', '那須', '日光', '鎌倉', '横浜'],
+                    '関西': ['有馬', '城崎', '道後', '別府', '由布院', '白浜', '勝浦', '京都', '奈良', '大阪'],
+                    '中部': ['下呂', '草津', '修善寺', '箱根', '高山', '白川郷', '金沢', '松本', '上高地'],
+                    '九州': ['別府', '由布院', '指宿', '黒川', '霧島', '雲仙', '嬉野', '福岡', '熊本', '鹿児島'],
+                    '北海道': ['登別', '定山渓', '層雲峡', '十勝', '洞爺湖', '支笏湖', '札幌', '函館', '小樽', '知床'],
+                    '東北': ['鳴子', '蔵王', '花巻', '秋保', '銀山', '乳頭', '酸ヶ湯', '仙台', '盛岡', '青森'],
+                    '中国': ['道後', '三朝', '皆生', '湯本', '玉造', '松江', '広島', '高松', '松山'],
+                    '北陸': ['和倉', '山中', '片山津', '芦原', '加賀', '金沢', '富山', '新潟'],
+                    '四国': ['道後', '高松', '松山', '高知', '徳島', '丸亀', '今治', '祖谷', '四万十川', '鳴門', '足摺岬', '室戸岬', '大歩危', '小歩危', '剣山', '石鎚山'],
+                    '沖縄': ['那覇', '沖縄', '石垣', '宮古', '久米島', '与那国', '座間味', '渡嘉敷']
+                };
+                
+                const priorities = regionPriorities[departureRegion] || [];
+                
+                // 行きたい方面の目的地を優先的に抽出
                 const prioritized = [];
                 const others = [];
                 
-                regionDestinations.forEach(dest => {
-                    if (uniqueDestinations.includes(dest)) {
+                uniqueDestinations.forEach(dest => {
+                    if (priorities.includes(dest)) {
                         prioritized.push(dest);
                     } else {
                         others.push(dest);
                     }
                 });
                 
-                // 行きたい方面の目的地を優先し、残りを追加
-                uniqueDestinations = [...prioritized, ...others.filter(d => !prioritized.includes(d))];
+                // 優先順位に従ってソート
+                prioritized.sort((a, b) => {
+                    const aIndex = priorities.indexOf(a);
+                    const bIndex = priorities.indexOf(b);
+                    return aIndex - bIndex;
+                });
                 
-                // 行きたい方面の目的地が少ない場合は、その地域の他の目的地を追加
+                // 行きたい方面の目的地を先頭に、残りを追加
+                uniqueDestinations = [...prioritized, ...others];
+                
+                // 行きたい方面の目的地が3つ未満の場合は、その地域の他の目的地を追加
                 if (prioritized.length < 3) {
-                    // 希望要素から行きたい方面の目的地を追加で探す
                     interests.forEach(interest => {
                         if (destinations[interest] && destinations[interest][budgetLevel]) {
-                            const regionDests = getDestinationsByRegion(destinations[interest][budgetLevel], departureRegion);
-                            regionDests.forEach(dest => {
-                                if (!uniqueDestinations.includes(dest)) {
+                            const allDests = destinations[interest][budgetLevel];
+                            allDests.forEach(dest => {
+                                if (priorities.includes(dest) && !uniqueDestinations.includes(dest)) {
                                     uniqueDestinations.push(dest);
                                 }
                             });
                         }
                     });
                 }
+                
+                console.log('行きたい方面の優先目的地:', prioritized);
+                console.log('その他の目的地:', others);
             } else {
                 // 行きたい方面が指定されていない場合は、ランダムにシャッフル
                 uniqueDestinations = uniqueDestinations.sort(() => Math.random() - 0.5);
