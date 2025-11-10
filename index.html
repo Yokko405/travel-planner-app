@@ -545,15 +545,16 @@
         // ベースURL
         const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
         
-        // GitHub Pagesからは直接APIを呼び出せるため、CORSプロキシは不要
-        // file://プロトコルの場合のみプロキシを使用
+        // Gemini APIはCORSを許可していないため、プロキシが必要な場合がある
+        // ただし、最初は直接APIを試し、CORSエラーが出た場合のみプロキシを使用
         const CORS_PROXIES = [
             'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?'
+            'https://corsproxy.io/?',
+            'https://api.codetabs.com/v1/proxy?quest='
         ];
         
-        // CORSプロキシを使用するかどうか（file://プロトコルの場合のみ）
-        let useCorsProxy = window.location.protocol === 'file:';
+        // CORSプロキシを使用するかどうか（CORSエラーが発生した場合にtrueになる）
+        let useCorsProxy = false;
         let corsProxyIndex = 0;
 
         const form = document.getElementById('travelForm');
@@ -657,11 +658,7 @@
                         // CORSエラーが発生した場合、プロキシを使用
                         if (useCorsProxy && corsProxyIndex < CORS_PROXIES.length) {
                             const proxy = CORS_PROXIES[corsProxyIndex];
-                            if (proxy.includes('allorigins')) {
-                                apiUrl = proxy + encodeURIComponent(apiUrl);
-                            } else {
-                                apiUrl = proxy + encodeURIComponent(apiUrl);
-                            }
+                            apiUrl = proxy + encodeURIComponent(apiUrl);
                         }
                         
                         console.log(`試行中: ${model} - ${apiUrl.substring(0, 100)}...`);
@@ -681,9 +678,8 @@
                         };
                         
                         const response = await fetch(apiUrl, requestOptions).catch(fetchError => {
-                            // GitHub PagesからはCORSエラーは発生しないはず
-                            // file://プロトコルの場合のみプロキシを試す
-                            if ((fetchError.message.includes('Failed to fetch') || fetchError.message.includes('CORS')) && window.location.protocol === 'file:') {
+                            // CORSエラーの場合、プロキシを試す
+                            if (fetchError.message.includes('Failed to fetch') || fetchError.message.includes('CORS')) {
                                 if (!useCorsProxy && corsProxyIndex < CORS_PROXIES.length) {
                                     console.warn('CORSエラーが検出されました。プロキシを使用して再試行します...');
                                     useCorsProxy = true;
@@ -707,12 +703,51 @@
                         }
 
                         if (response.ok) {
-                            const data = await response.json();
+                            let responseText = await response.text();
+                            
+                            // プロキシ経由の場合、レスポンスがラップされている可能性がある
+                            if (useCorsProxy && corsProxyIndex < CORS_PROXIES.length) {
+                                const proxy = CORS_PROXIES[corsProxyIndex];
+                                try {
+                                    if (proxy.includes('allorigins')) {
+                                        // alloriginsの/rawエンドポイントは生のレスポンスを返す
+                                        // そのまま使用
+                                    } else if (proxy.includes('codetabs')) {
+                                        // codetabsは生のレスポンスを返す
+                                        // そのまま使用
+                                    } else {
+                                        // その他のプロキシはJSONでラップされている可能性がある
+                                        const wrapped = JSON.parse(responseText);
+                                        if (wrapped.contents) {
+                                            responseText = wrapped.contents;
+                                        } else if (typeof wrapped === 'string') {
+                                            responseText = wrapped;
+                                        } else if (wrapped.data) {
+                                            responseText = wrapped.data;
+                                        }
+                                    }
+                                } catch (e) {
+                                    // JSONでない場合はそのまま使用
+                                    console.warn('プロキシレスポンスのパースに失敗しましたが、そのまま使用します:', e);
+                                }
+                            }
+                            
+                            // JSONとしてパース
+                            let data;
+                            try {
+                                data = JSON.parse(responseText);
+                            } catch (e) {
+                                console.error('JSON parse error:', e);
+                                console.error('Response text:', responseText.substring(0, 500));
+                                throw new Error('APIからの応答が不正なJSON形式です。');
+                            }
                             
                             if (data.candidates && data.candidates[0] && data.candidates[0].content) {
                                 text = data.candidates[0].content.parts[0].text;
                                 success = true;
                                 break; // 成功したらループを抜ける
+                            } else {
+                                console.warn('予期しないレスポンス形式:', data);
                             }
                         } else {
                             // エラーレスポンスを取得
