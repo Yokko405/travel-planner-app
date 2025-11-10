@@ -452,13 +452,15 @@
             
             <form id="travelForm">
                 <div class="form-group">
-                    <label for="apiKey">Gemini APIキー 🔑</label>
+                    <label for="apiKey">Gemini APIキー 🔑（オプション）</label>
                     <div class="api-key-group">
-                        <input type="password" id="apiKey" name="apiKey" placeholder="APIキーを入力してください" required>
+                        <input type="password" id="apiKey" name="apiKey" placeholder="APIキーを入力（未入力の場合は無料APIモード）">
                         <button type="button" class="api-key-toggle" id="apiKeyToggle">表示</button>
                     </div>
                     <div class="api-key-info">
-                        APIキーはローカルストレージに保存されます。<a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>で取得できます。
+                        APIキーを入力するとGemini APIを使用します（高品質な提案）。<br>
+                        未入力の場合は無料の旅行情報APIを使用します（APIキー不要）。<br>
+                        <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>で取得できます。
                     </div>
                 </div>
 
@@ -619,18 +621,19 @@
             const duration = formData.get('duration');
             const season = formData.get('season');
 
-            if (!apiKey || apiKey.trim() === '') {
-                showError('Gemini APIキーを入力してください。');
-                return;
-            }
-
             if (interests.length === 0) {
                 showError('希望要素を少なくとも1つ選択してください。');
                 return;
             }
 
-            // APIキーをローカルストレージに保存
-            localStorage.setItem('geminiApiKey', apiKey.trim());
+            // APIキーをローカルストレージに保存（入力されている場合のみ）
+            if (apiKey && apiKey.trim() !== '') {
+                localStorage.setItem('geminiApiKey', apiKey.trim());
+            } else {
+                localStorage.removeItem('geminiApiKey');
+            }
+
+            const useGeminiAPI = apiKey && apiKey.trim() !== '';
 
             // ローディング表示
             loading.classList.add('active');
@@ -639,9 +642,43 @@
             submitBtn.disabled = true;
 
             try {
-                // まず利用可能なモデルをリストして確認
-                console.log('利用可能なモデルを確認中...');
-                let availableModels = GEMINI_MODELS;
+                // APIキーがある場合はGemini APIを使用、ない場合は無料APIを使用
+                if (useGeminiAPI) {
+                    // Gemini APIを使用
+                    await generatePlansWithGemini(apiKey.trim(), interests, departure, budget, duration, season);
+                } else {
+                    // 無料APIを使用
+                    await generatePlansWithFreeAPI(interests, departure, budget, duration, season);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                let errorMessage = error.message;
+                
+                // クォータ超過エラーの場合、警告を表示
+                if (error.message.includes('429') || error.message.includes('クォータ超過')) {
+                    const quotaWarning = document.getElementById('quotaWarning');
+                    if (quotaWarning) {
+                        quotaWarning.style.display = 'block';
+                    }
+                }
+                
+                // Failed to fetchエラーの場合、より詳細な情報を提供
+                if (error.message.includes('Failed to fetch') || error.message.includes('ネットワークエラー')) {
+                    errorMessage = `ネットワークエラーが発生しました。\n\n考えられる原因:\n1. インターネット接続を確認してください\n2. ブラウザのコンソール（F12）でCORSエラーを確認してください\n3. APIキーが正しいか確認してください\n4. ファイアウォールやプロキシの設定を確認してください\n\n詳細: ${error.message}`;
+                }
+                
+                showError(errorMessage);
+            } finally {
+                loading.classList.remove('active');
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Gemini APIを使用してプランを生成
+        async function generatePlansWithGemini(apiKey, interests, departure, budget, duration, season) {
+            // まず利用可能なモデルをリストして確認
+            console.log('利用可能なモデルを確認中...');
+            let availableModels = GEMINI_MODELS;
                 
                 // ListModels APIを呼び出して利用可能なモデルを取得（オプション）
                 try {
@@ -870,30 +907,114 @@
 
                 // 保存されたプランを更新
                 displaySavedPlans();
+        }
 
-            } catch (error) {
-                console.error('Error:', error);
-                let errorMessage = error.message;
+        // 無料APIを使用してプランを生成
+        async function generatePlansWithFreeAPI(interests, departure, budget, duration, season) {
+            console.log('無料APIモードでプランを生成中...');
+            
+            // 日本の主要観光地データベース（簡易版）
+            const destinations = {
+                '温泉': ['箱根', '草津', '別府', '由布院', '登別', '道後', '有馬', '下呂'],
+                '秘境': ['白川郷', '屋久島', '知床', '小笠原諸島', '奥入瀬', '祖谷', '四万十川', '尾瀬'],
+                '歴史建造物': ['京都', '奈良', '鎌倉', '金沢', '松本', '会津若松', '萩', '竹田'],
+                'グルメ': ['大阪', '福岡', '函館', '金沢', '松阪', '神戸', '博多', '札幌'],
+                '自然': ['富士山', '立山黒部', '知床', '屋久島', '白神山地', '阿蘇', '十和田', '日光'],
+                'アート': ['直島', '金沢', '箱根', '軽井沢', '那須', '六本木', '表参道', '代官山']
+            };
+
+            // 希望要素に基づいて目的地を選択
+            const selectedDestinations = [];
+            interests.forEach(interest => {
+                if (destinations[interest]) {
+                    selectedDestinations.push(...destinations[interest].slice(0, 2));
+                }
+            });
+
+            // 重複を削除
+            const uniqueDestinations = [...new Set(selectedDestinations)];
+
+            // 3つのプランを生成
+            const plans = [];
+            const planTemplates = [
+                {
+                    name: 'のんびりプラン',
+                    style: 'ゆったりとした時間を過ごす',
+                    focus: 'リラックス'
+                },
+                {
+                    name: 'アクティブプラン',
+                    style: '充実した体験を楽しむ',
+                    focus: 'アクティビティ'
+                },
+                {
+                    name: 'バランスプラン',
+                    style: '観光と体験のバランス',
+                    focus: '多様性'
+                }
+            ];
+
+            for (let i = 0; i < 3; i++) {
+                const dest = uniqueDestinations[i % uniqueDestinations.length] || '東京';
+                const template = planTemplates[i];
+                const dailyBudget = Math.floor(parseInt(budget) / parseInt(duration));
                 
-                // クォータ超過エラーの場合、警告を表示
-                if (error.message.includes('429') || error.message.includes('クォータ超過')) {
-                    const quotaWarning = document.getElementById('quotaWarning');
-                    if (quotaWarning) {
-                        quotaWarning.style.display = 'block';
-                    }
+                let planContent = `【${template.name}】\n\n`;
+                planContent += `目的地: ${dest}\n`;
+                planContent += `日程: ${duration}日間\n`;
+                planContent += `時期: ${season}\n`;
+                planContent += `予算: ${parseInt(budget).toLocaleString()}円（1日あたり約${dailyBudget.toLocaleString()}円）\n\n`;
+                
+                planContent += `【プランの特徴】\n`;
+                planContent += `${template.style}を重視したプランです。${dest}の魅力を存分に楽しめます。\n\n`;
+                
+                planContent += `【おすすめスポット】\n`;
+                if (interests.includes('温泉')) {
+                    planContent += `・温泉施設でリラックス\n`;
+                }
+                if (interests.includes('グルメ')) {
+                    planContent += `・地元の名物料理を堪能\n`;
+                }
+                if (interests.includes('自然')) {
+                    planContent += `・自然散策を楽しむ\n`;
+                }
+                if (interests.includes('歴史建造物')) {
+                    planContent += `・歴史的な建造物を巡る\n`;
+                }
+                if (interests.includes('アート')) {
+                    planContent += `・アートスポットを訪問\n`;
                 }
                 
-                // Failed to fetchエラーの場合、より詳細な情報を提供
-                if (error.message.includes('Failed to fetch') || error.message.includes('ネットワークエラー')) {
-                    errorMessage = `ネットワークエラーが発生しました。\n\n考えられる原因:\n1. インターネット接続を確認してください\n2. ブラウザのコンソール（F12）でCORSエラーを確認してください\n3. APIキーが正しいか確認してください\n4. ファイアウォールやプロキシの設定を確認してください\n\n詳細: ${error.message}`;
-                }
-                
-                showError(errorMessage);
-            } finally {
-                loading.classList.remove('active');
-                submitBtn.disabled = false;
+                planContent += `\n【予算の使い方】\n`;
+                planContent += `・交通費: 約${Math.floor(dailyBudget * 0.3).toLocaleString()}円\n`;
+                planContent += `・宿泊費: 約${Math.floor(dailyBudget * 0.4).toLocaleString()}円\n`;
+                planContent += `・食事代: 約${Math.floor(dailyBudget * 0.2).toLocaleString()}円\n`;
+                planContent += `・体験・観光: 約${Math.floor(dailyBudget * 0.1).toLocaleString()}円\n`;
+
+                plans.push({
+                    number: i + 1,
+                    title: `${dest}${template.name}`,
+                    content: planContent
+                });
             }
-        });
+
+            // プランを表示
+            displayPlans(plans);
+
+            // ローカルストレージに保存
+            savePlan({
+                interests,
+                departure,
+                budget,
+                duration,
+                season,
+                plans,
+                timestamp: new Date().toISOString()
+            });
+
+            // 保存されたプランを更新
+            displaySavedPlans();
+        }
 
         // プランテキストを解析
         function parsePlans(text) {
