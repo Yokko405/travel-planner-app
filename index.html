@@ -622,6 +622,29 @@
             submitBtn.disabled = true;
 
             try {
+                // まず利用可能なモデルをリストして確認
+                console.log('利用可能なモデルを確認中...');
+                let availableModels = GEMINI_MODELS;
+                
+                // ListModels APIを呼び出して利用可能なモデルを取得（オプション）
+                try {
+                    const listModelsUrl = `${GEMINI_API_BASE}/models?key=${apiKey.trim()}`;
+                    const modelsResponse = await fetch(listModelsUrl).catch(() => null);
+                    if (modelsResponse && modelsResponse.ok) {
+                        const modelsData = await modelsResponse.json();
+                        if (modelsData.models) {
+                            // generateContentをサポートするモデルをフィルタ
+                            availableModels = modelsData.models
+                                .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+                                .map(m => m.name.replace('models/', ''))
+                                .slice(0, 5); // 最初の5つを使用
+                            console.log('利用可能なモデル:', availableModels);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('モデルリストの取得に失敗しました。デフォルトのモデルを使用します。', e);
+                }
+                
                 const prompt = `以下の条件に基づいて、旅行プランを3案提案してください。各プランは具体的で魅力的な内容にしてください。
 
 【条件】
@@ -645,12 +668,12 @@
 
 各プランは200文字程度で、魅力的で具体的な内容にしてください。`;
 
-                // 複数のモデルを試す
+                // 複数のモデルを試す（利用可能なモデルを使用）
                 let lastError = null;
                 let success = false;
                 let text = null;
 
-                for (const model of GEMINI_MODELS) {
+                for (const model of availableModels) {
                     try {
                         // 正しいエンドポイント形式: /v1beta/models/{model}:generateContent
                         let apiUrl = `${GEMINI_API_BASE}/models/${model}:generateContent?key=${apiKey.trim()}`;
