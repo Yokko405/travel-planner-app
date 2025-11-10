@@ -532,15 +532,13 @@
 
     <script>
         // 使用可能なGemini APIモデル（順番に試す）
-        // 最新のモデル名を試す
+        // 正しいモデル名を使用（models/プレフィックスは不要）
         const GEMINI_MODELS = [
-            'gemini-1.5-flash-latest',
-            'gemini-1.5-pro-latest',
             'gemini-1.5-flash',
             'gemini-1.5-pro',
             'gemini-pro',
-            'models/gemini-1.5-flash',
-            'models/gemini-1.5-pro'
+            'gemini-1.5-flash-002',
+            'gemini-1.5-pro-002'
         ];
         
         // ベースURL
@@ -654,7 +652,8 @@
 
                 for (const model of GEMINI_MODELS) {
                     try {
-                        let apiUrl = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey.trim()}`;
+                        // 正しいエンドポイント形式: /v1beta/models/{model}:generateContent
+                        let apiUrl = `${GEMINI_API_BASE}/models/${model}:generateContent?key=${apiKey.trim()}`;
                         
                         // CORSエラーが発生した場合、プロキシを使用
                         if (useCorsProxy && corsProxyIndex < CORS_PROXIES.length) {
@@ -765,6 +764,14 @@
                                 // 404の場合は次のモデルを試す
                                 console.warn(`モデル "${model}" が見つかりません（404）。次のモデルを試します...`);
                                 console.warn('エラー詳細:', errorMessage);
+                                
+                                // プロキシが404を返している場合、プロキシを切り替える
+                                if (useCorsProxy && corsProxyIndex < CORS_PROXIES.length - 1) {
+                                    console.warn(`プロキシ ${corsProxyIndex + 1} が404を返しました。次のプロキシを試します...`);
+                                    corsProxyIndex++;
+                                    continue;
+                                }
+                                
                                 lastError = new Error(`モデル "${model}" が見つかりません（404）`);
                                 continue;
                             } else if (response.status === 400) {
