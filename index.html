@@ -913,26 +913,56 @@
         async function generatePlansWithFreeAPI(interests, departure, budget, duration, season) {
             console.log('無料APIモードでプランを生成中...');
             
-            // 日本の主要観光地データベース（簡易版）
+            // 日本の主要観光地データベース（拡張版）
             const destinations = {
-                '温泉': ['箱根', '草津', '別府', '由布院', '登別', '道後', '有馬', '下呂'],
-                '秘境': ['白川郷', '屋久島', '知床', '小笠原諸島', '奥入瀬', '祖谷', '四万十川', '尾瀬'],
-                '歴史建造物': ['京都', '奈良', '鎌倉', '金沢', '松本', '会津若松', '萩', '竹田'],
-                'グルメ': ['大阪', '福岡', '函館', '金沢', '松阪', '神戸', '博多', '札幌'],
-                '自然': ['富士山', '立山黒部', '知床', '屋久島', '白神山地', '阿蘇', '十和田', '日光'],
-                'アート': ['直島', '金沢', '箱根', '軽井沢', '那須', '六本木', '表参道', '代官山']
+                '温泉': ['箱根', '草津', '別府', '由布院', '登別', '道後', '有馬', '下呂', '城崎', '指宿', '熱海', '伊豆', '修善寺', '鬼怒川'],
+                '秘境': ['白川郷', '屋久島', '知床', '小笠原諸島', '奥入瀬', '祖谷', '四万十川', '尾瀬', '青ヶ島', '利尻島', '礼文島', '西表島', '竹富島', '与那国島'],
+                '歴史建造物': ['京都', '奈良', '鎌倉', '金沢', '松本', '会津若松', '萩', '竹田', '彦根', '高知', '松江', '津和野', '角館', '弘前'],
+                'グルメ': ['大阪', '福岡', '函館', '金沢', '松阪', '神戸', '博多', '札幌', '広島', '仙台', '名古屋', '横浜', '新潟', '高松'],
+                '自然': ['富士山', '立山黒部', '知床', '屋久島', '白神山地', '阿蘇', '十和田', '日光', '上高地', '黒部峡谷', '雲仙', '霧島', '十勝', '釧路'],
+                'アート': ['直島', '金沢', '箱根', '軽井沢', '那須', '六本木', '表参道', '代官山', '豊島', '犬島', '越後妻有', '瀬戸内', '新潟', '横浜']
             };
 
-            // 希望要素に基づいて目的地を選択
+            // 希望要素に基づいて目的地を選択（より多くの候補を取得）
             const selectedDestinations = [];
             interests.forEach(interest => {
                 if (destinations[interest]) {
-                    selectedDestinations.push(...destinations[interest].slice(0, 2));
+                    // 各希望要素から3-4つ選択
+                    const count = Math.min(4, destinations[interest].length);
+                    selectedDestinations.push(...destinations[interest].slice(0, count));
                 }
             });
 
             // 重複を削除
-            const uniqueDestinations = [...new Set(selectedDestinations)];
+            let uniqueDestinations = [...new Set(selectedDestinations)];
+            
+            // もし目的地が3つ未満の場合は、すべての希望要素から追加
+            if (uniqueDestinations.length < 3) {
+                interests.forEach(interest => {
+                    if (destinations[interest]) {
+                        destinations[interest].forEach(dest => {
+                            if (!uniqueDestinations.includes(dest)) {
+                                uniqueDestinations.push(dest);
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // ランダムにシャッフルして多様性を確保
+            uniqueDestinations = uniqueDestinations.sort(() => Math.random() - 0.5);
+            
+            // 3つの異なる目的地を選択（可能な限り）
+            const finalDestinations = [];
+            for (let i = 0; i < 3; i++) {
+                if (uniqueDestinations.length > 0) {
+                    finalDestinations.push(uniqueDestinations[i % uniqueDestinations.length]);
+                } else {
+                    // フォールバック
+                    const fallback = ['東京', '大阪', '京都', '福岡', '札幌', '名古屋', '横浜', '仙台'];
+                    finalDestinations.push(fallback[i % fallback.length]);
+                }
+            }
 
             // 3つのプランを生成
             const plans = [];
@@ -955,7 +985,7 @@
             ];
 
             for (let i = 0; i < 3; i++) {
-                const dest = uniqueDestinations[i % uniqueDestinations.length] || '東京';
+                const dest = finalDestinations[i];
                 const template = planTemplates[i];
                 const dailyBudget = Math.floor(parseInt(budget) / parseInt(duration));
                 
