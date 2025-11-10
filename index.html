@@ -712,16 +712,31 @@
             
             // 行きたい方面が指定されている場合は、それを優先
             if (region && region.trim() !== '') {
-                // 都道府県名から判定
+                // まず都道府県名から判定
+                let found = false;
                 for (const [pref, reg] of Object.entries(prefectureToRegion)) {
-                    if (region.includes(pref)) {
+                    if (region.includes(pref) || pref.includes(region)) {
                         departureRegion = reg;
+                        found = true;
+                        console.log(`行きたい方面「${region}」を都道府県名「${pref}」から「${reg}」に判定`);
                         break;
                     }
                 }
                 
-                // 都道府県名で見つからなかった場合、地域名で判定
-                if (departureRegion === '関東') {
+                // 都道府県名で見つからなかった場合、主要都市で判定
+                if (!found) {
+                    for (const [city, reg] of Object.entries(cityToRegion)) {
+                        if (region.includes(city) || city.includes(region)) {
+                            departureRegion = reg;
+                            found = true;
+                            console.log(`行きたい方面「${region}」を主要都市「${city}」から「${reg}」に判定`);
+                            break;
+                        }
+                    }
+                }
+                
+                // 都道府県名・主要都市で見つからなかった場合、地域名で判定
+                if (!found) {
                     const regionKeywords = {
                         '関東': '関東', '関西': '関西', '中部': '中部', '九州': '九州',
                         '北海道': '北海道', '東北': '東北', '中国': '中国', '北陸': '北陸',
@@ -731,9 +746,15 @@
                     for (const [keyword, reg] of Object.entries(regionKeywords)) {
                         if (region.includes(keyword)) {
                             departureRegion = reg;
+                            found = true;
+                            console.log(`行きたい方面「${region}」を地域名「${keyword}」から「${reg}」に判定`);
                             break;
                         }
                     }
+                }
+                
+                if (!found) {
+                    console.log(`行きたい方面「${region}」の判定に失敗。デフォルトの「${departureRegion}」を使用`);
                 }
             }
             
@@ -1080,17 +1101,17 @@
                 ],
                 '中部': [
                     // 温泉
-                    '下呂', '高山', '飛騨', '白骨', '新穂高', '草津', '修善寺', '箱根', '和倉', '山中', '片山津', '芦原', '加賀',
+                    '下呂', '高山', '飛騨', '白骨', '新穂高', '草津', '修善寺', '箱根', '熱海', '伊豆', '修善寺', '和倉', '山中', '片山津', '芦原', '加賀',
                     // 観光地
-                    '金沢', '松本', '高山', '白川郷', '名古屋', '犬山', '岡崎', '浜松', '静岡', '小田原',
+                    '静岡', '浜松', '小田原', '名古屋', '犬山', '岡崎', '金沢', '松本', '高山', '白川郷', '富士山',
                     // 自然
-                    '上高地', '黒部峡谷', '立山黒部', '富士山', '白川郷',
+                    '富士山', '上高地', '黒部峡谷', '立山黒部', '白川郷',
                     // 歴史
-                    '金沢', '松本', '名古屋', '犬山', '岡崎', '浜松', '静岡', '小田原', '高山', '白川郷',
+                    '静岡', '浜松', '小田原', '名古屋', '犬山', '岡崎', '金沢', '松本', '高山', '白川郷',
                     // グルメ
-                    '名古屋', '金沢', '富山', '松本', '高山', '浜松', '静岡',
+                    '静岡', '浜松', '名古屋', '金沢', '富山', '松本', '高山',
                     // アート
-                    '金沢', '箱根', '軽井沢', '那須', '名古屋', '松本', '高山'
+                    '静岡', '浜松', '名古屋', '金沢', '箱根', '軽井沢', '松本', '高山'
                 ],
                 '九州': [
                     // 温泉
