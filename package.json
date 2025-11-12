@@ -1,0 +1,22 @@
+{
+  "name": "ai-travel-planner",
+  "version": "1.0.0",
+  "description": "AI旅行プランナー - Cloudflare Workers版",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": [
+    "travel",
+    "ai",
+    "openai",
+    "cloudflare-workers"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^4.47.0"
+  }
+}

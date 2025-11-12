@@ -1,0 +1,11 @@
+# ローカル開発用の環境変数テンプレート
+# このファイルを .dev.vars にコピーして、実際の値を設定してください
+# .dev.vars は .gitignore に含まれているため、Gitにはコミットされません
+
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
+
+# Basic認証（オプション）
+# 設定しない場合は、これらの行を削除するか、コメントアウトしてください
+BASIC_AUTH_USER=your-username
+BASIC_AUTH_PASS=your-password
+
